@@ -79,3 +79,65 @@ class VolumenDicom:
 
     def ver_num_cortes(self):
         return self.__volumen.shape[0]
+
+# Lee todos los .dcm de la carpeta (y subcarpetas), los ordena y extrae la información
+    def __cargar_dicom(self):
+        archivos = []
+        for raiz, _, nombres in os.walk(self.__carpeta):
+            for n in sorted(nombres):
+                if n.lower().endswith(".dcm"):
+                    archivos.append(os.path.join(raiz, n))
+
+        if len(archivos) == 0:
+            raise ValueError(f"Error, no se encontraron archivos .dcm en {self.__carpeta}")
+
+        datasets = [pydicom.dcmread(a) for a in archivos]
+
+        filas = int(datasets[0].Rows)
+        columnas = int(datasets[0].Columns)
+        datasets = [d for d in datasets if int(d.Rows) == filas and int(d.Columns) == columnas]
+        datasets.sort(key=self.__posicion_corte)
+
+        ds = datasets[0]
+        self.__filas = filas
+        self.__columnas = columnas
+        self.__nombre_paciente = str(ds.PatientName)
+        self.__modalidad = str(ds.Modality)
+
+        espaciado = getattr(ds, "PixelSpacing", [1.0, 1.0])
+        grosor = float(getattr(ds, "SliceThickness", 1.0))
+        self.__voxel = (float(espaciado[0]), float(espaciado[1]), grosor)
+
+        self.__matriz_pixeles = np.stack([d.pixel_array for d in datasets], axis=0)
+
+# Ordena los cortes por su posición real en el espacio (si no hay posición usa InstanceNumber)
+    def __posicion_corte(self, ds):
+        try:
+            orientacion = np.array(ds.ImageOrientationPatient, dtype=float)
+            normal = np.cross(orientacion[:3], orientacion[3:])
+            posicion = np.array(ds.ImagePositionPatient, dtype=float)
+            return float(np.dot(normal, posicion))
+        except AttributeError:
+            return float(getattr(ds, "InstanceNumber", 0))
+
+# Se escala cada corte al doble de su tamaño y apila todo en el volumen 3D
+    def __escalar_y_reconstruir(self):
+        cortes = []
+        for corte in self.__matriz_pixeles:
+            grande = cv2.resize(corte, (self.__columnas * 2, self.__filas * 2), interpolation=cv2.INTER_LINEAR)
+            cortes.append(grande)
+        self.__volumen = np.stack(cortes, axis=0)
+
+        # Al duplicar los píxeles, cada píxel mide la mitad (el grosor del corte no cambia)
+        alto, largo, ancho = self.__voxel
+        self.__voxel_escalado = (alto / 2, largo / 2, ancho)
+
+# Devuelve el volumen que se debe usar (el corregido si ya se rotó, si no el original)
+    def __volumen_activo(self):
+        if self.__volumen_corregido is not None:
+            return self.__volumen_corregido
+        return self.__volumen
+
+# Convierte cualquier imagen a uint8 (0 - 255)
+    def __normalizar_uint8(self, imagen):
+        return cv2.normalize(imagen, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
