@@ -7,8 +7,8 @@ import pydicom
 class VolumenDicom:
     def __init__(self, ruta, nombre_archivo):
 
-        self.ruta = ruta
-        self.nombre = nombre_archivo
+        self.__ruta = ruta
+        self.__nombre = nombre_archivo
 
         # Información extraída del dataset DICOM
         self.__filas = 0
@@ -25,7 +25,7 @@ class VolumenDicom:
         self.__matriz_rotacion = None
         self.__volumen_copia = None 
         self.__corte_ecualizado = None
-        
+
         # Al crear el objeto se cargan los archivos y se hace la reconstrucción
         self.__cargar_dicom()
         self.__escalar_y_reconstruir()
