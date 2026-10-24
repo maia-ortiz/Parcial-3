@@ -239,7 +239,7 @@ class VolumenDicom:
 
         return ruta_grafico, ruta_imagen
 
-# Sacamos un corte en el plano pedido y lo deja con píxeles cuadrados
+# Sacamos un corte en el plano pedido y lo dejamos con píxeles cuadrados
     def __extraer_plano(self, plano, indice):
         volumen = self.__volumen_activo()
         n, filas, columnas = volumen.shape
@@ -269,7 +269,7 @@ class VolumenDicom:
 
         corte = np.ascontiguousarray(corte)
 
-        # Método por si un lado del píxel mide distinto al otro, se estira el corte para igualarlos
+        # Método por si un lado del píxel mide distinto al otro (se estira el corte para igualarlos)
         aspecto = mm_alto / mm_ancho
         if abs(aspecto - 1) > 0.01:
             nuevo_alto = max(1, int(round(corte.shape[0] * aspecto)))
@@ -278,7 +278,7 @@ class VolumenDicom:
 
         return corte, mm_alto, mm_ancho
 
-# Binariza, abre y mide la zona de interés (huecos oscuros dentro del cuerpo)
+# Método para binarizar, abrir y medir la zona de interés (huecos oscuros dentro del cuerpo)
     def segmentar_corte(self, plano, indice, umbral, tam_kernel, iteraciones, zona="oscura", carpeta_salida="resultados"):
         if zona not in ("oscura", "clara"):
             raise ValueError("Error, la zona de interés debe ser 'oscura' o 'clara'")
@@ -291,7 +291,8 @@ class VolumenDicom:
         corte8 = self.__normalizar_uint8(corte)
         alto_px, ancho_px = corte8.shape
 
-        # Zona oscura (aire, T1): umbral inverso. Zona clara (líquido, T2): umbral normal. Lo que nos interesa va a quedar color blanco
+        # Aplicamos para la zona oscura (aire u otros huecos oscuros) -> umbral inverso, 
+        # para la zona clara (líquido en imágenes T2) -> umbral normal
         tipo = cv2.THRESH_BINARY_INV if zona == "oscura" else cv2.THRESH_BINARY
         _, binaria = cv2.threshold(corte8, umbral, 255, tipo)
 
@@ -317,3 +318,77 @@ class VolumenDicom:
 
         x, y, w, h, area_px = stats[mejor]
         area_mm2 = float(area_px) * mm_alto * mm_ancho
+
+# Pasamos a RGB para poder dibujar el círculo a color
+        mascara_rgb = cv2.cvtColor(interes, cv2.COLOR_GRAY2RGB)
+        original_rgb = cv2.cvtColor(corte8, cv2.COLOR_GRAY2RGB)
+        centro = (int(x + w / 2), int(y + h / 2))
+        radio = int(0.5 * np.sqrt(w ** 2 + h ** 2)) + 8
+        grosor = max(2, ancho_px // 200)
+        color = (255, 192, 203) # Consultamos el código del color rosado en RGB
+        cv2.circle(mascara_rgb, centro, radio, color, grosor)
+        cv2.circle(original_rgb, centro, radio, color, grosor)
+
+        ancho_mm = ancho_px * mm_ancho
+        alto_mm = alto_px * mm_alto
+
+        fig, ejes = plt.subplots(1, 2, figsize=(12, 6.5))
+        ejes[0].imshow(original_rgb)
+        ejes[0].set_title("Corte original (uint8)")
+        ejes[1].imshow(mascara_rgb)
+        ejes[1].set_title(f"Zona {zona} (umbral {int(umbral)}, kernel {tam_kernel}, iter {iteraciones})")
+        fig.suptitle(f"{self.__nombre} - plano {plano} - corte {indice}")
+        fig.text(0.5, 0.03,
+                 f"Dimensiones del corte: {ancho_mm:.1f} mm x {alto_mm:.1f} mm   |   "
+                 f"Área de la zona de interés: {area_mm2:.1f} mm² ({int(area_px)} px)",
+                 ha="center")
+        fig.tight_layout(rect=(0, 0.06, 1, 0.95))
+
+        os.makedirs(carpeta_salida, exist_ok=True)
+        base = f"{self.__nombre}_{plano}{indice}"
+        ruta_grafico = os.path.join(carpeta_salida, f"{base}_segmentacion.png")
+        ruta_imagen = os.path.join(carpeta_salida, f"{base}_circulo.png")
+        fig.savefig(ruta_grafico)
+        cv2.imwrite(ruta_imagen, cv2.cvtColor(mascara_rgb, cv2.COLOR_RGB2BGR)) # cv2 guarda en BGR
+        plt.show()
+        plt.close(fig)
+
+        return area_mm2, ruta_grafico, ruta_imagen
+
+# Usamos el __str__ para mostrar la información del volumen
+    def __str__(self):
+        n, filas, columnas = self.__volumen.shape
+        alto, largo, ancho = self.__voxel
+        info = f"""
+        Volumen: {self.__nombre}
+        Paciente: {self.__nombre_paciente}
+        Modalidad: {self.__modalidad}
+        Cortes: {n}
+        Filas x Columnas (original): {self.__filas} x {self.__columnas}
+        Filas x Columnas (escalado x2): {filas} x {columnas}
+        Voxel original (alto, largo, ancho): {alto:.3f} x {largo:.3f} x {ancho:.3f} mm
+        Rotación aplicada: {"Sí" if self.__volumen_corregido is not None else "No"}
+        """
+        return info
+
+
+# Creamos la clase GestorDicom que guarda y administra todos los volúmenes cargados
+class GestorDicom:
+    def __init__(self):
+        self.__volumenes = [] # Lista para almacenar los volúmenes cargados
+
+    def cargar_carpeta(self, nombre, carpeta):
+        if self.buscar_volumen(nombre) is not None:
+            raise ValueError(f"Error, ya existe un volumen llamado {nombre}")
+        volumen = VolumenDicom(nombre, carpeta)
+        self.__volumenes.append(volumen)
+        return volumen
+
+    def buscar_volumen(self, nombre):
+        for v in self.__volumenes:
+            if v.ver_nombre() == nombre:
+                return v
+        return None
+
+    def consultar_volumenes(self):
+        return list(self.__volumenes)
