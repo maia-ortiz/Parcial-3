@@ -69,7 +69,7 @@ Bienvenido al sistema de análisis de imágenes DICOM, ingrese la opción desead
                     print(e)
 
             elif menu2 == 2:
-                ruta = input("Ingrese la ruta de la carpeta 'datos' (Enter para usar ./datos): ")
+                ruta = input("Ingrese la ruta de la carpeta 'datos' (Presione Enter para usar ./datos): ") 
                 if ruta == "":
                     ruta = "datos"
                 print("Cargando, esto puede tardar unos segundos...")
