@@ -392,3 +392,32 @@ class GestorDicom:
 
     def consultar_volumenes(self):
         return list(self.__volumenes)
+
+# Método para cargar las carpetas de clase(PPMI,Sarcoma y T2)
+    def cargar_carpetas_clase(self, ruta_datos):
+        carpetas = []
+        ruta_ppmi = os.path.join(ruta_datos, "PPMI")
+        if os.path.isdir(ruta_ppmi):
+            for sub in sorted(os.listdir(ruta_ppmi)):
+                if os.path.isdir(os.path.join(ruta_ppmi, sub)):
+                    carpetas.append((f"PPMI_{sub}", os.path.join(ruta_ppmi, sub)))
+        carpetas.append(("Sarcoma", os.path.join(ruta_datos, "Sarcoma")))
+        carpetas.append(("T2", os.path.join(ruta_datos, "T2")))
+
+        cargados = []
+        errores = []
+        for nombre, ruta in carpetas:
+            try:
+                self.cargar_carpeta(nombre, ruta)
+                cargados.append(nombre)
+            except ValueError as e:
+                errores.append(f"{nombre}: {e}")
+        return cargados, errores
+
+# Método para generar un reporte de los volúmenes cargados
+def generar_reporte(gestor):
+    reporte = "Reporte de Volúmenes:\n"
+    for v in gestor.consultar_volumenes():
+        reporte += str(v)
+        reporte += "\n" + "-" * 30 + "\n"
+    return reporte
