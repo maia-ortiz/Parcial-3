@@ -80,3 +80,48 @@ Bienvenido al sistema de análisis de imágenes DICOM, ingrese la opción desead
                     print(e)
             else:
                 print("Opción inválida. Por favor, intente de nuevo.")
+
+        elif op == 2:
+            volumenes = gestor.consultar_volumenes()
+            if len(volumenes) == 0:
+                print("No hay volúmenes cargados.")
+            else:
+                print(sd.generar_reporte(gestor))
+
+        elif op == 3:
+            volumen = elegir_volumen(gestor)
+            if volumen is None:
+                continue
+
+            angulo = pedir_decimal("Ingrese el ángulo de inclinación en grados (positivo = antihorario): ")
+            if angulo is None:
+                continue
+
+            try:
+                volumen.corregirAngulo(angulo)
+                print(f"\nVolumen {volumen.ver_nombre()} rotado {angulo} grados. Los procesos siguientes usarán el volumen corregido.")
+                print("Matriz de rotación:")
+                print(volumen.ver_matriz_rotacion())
+            except ValueError as e:
+                print(e)
+
+        elif op == 4:
+            volumen = elegir_volumen(gestor)
+            if volumen is None:
+                continue
+
+            indice = pedir_entero(f"Ingrese el número del corte (0 a {volumen.ver_num_cortes() - 1}): ")
+            if indice is None:
+                continue
+
+            try:
+                ruta_grafico, ruta_imagen = volumen.ecualizar_corte(indice)
+                print(f"\nGráfico guardado en: {ruta_grafico}")
+                print(f"Imagen ecualizada guardada en: {ruta_imagen}")
+            except ValueError as e:
+                print(e)
+
+        elif op == 5:
+            volumen = elegir_volumen(gestor)
+            if volumen is None:
+                continue
