@@ -33,3 +33,50 @@ def elegir_volumen(gestor):
 # Creamos el menú principal y sub-menús para la gestión de los volúmenes DICOM
 def main():
     gestor = sd.GestorDicom() # Objeto que almacena los volúmenes cargados
+
+    while True:
+        op = pedir_entero("""
+Bienvenido al sistema de análisis de imágenes DICOM, ingrese la opción deseada:
+            1. Cargar datos.
+            2. Ver volúmenes cargados.
+            3. Corregir ángulo (rotar volumen).
+            4. Ecualizar un corte.
+            5. Segmentar un corte.
+            6. Salir.
+            Coloque aquí su opción --> """)
+
+        if op is None:
+            continue
+
+        if op == 1:
+            menu2 = pedir_entero("""Ingrese la opción deseada:
+            1. Cargar una carpeta DICOM.
+            2. Cargar las carpetas de clase (PPMI, Sarcoma y T2).
+            0. Volver al menú principal.
+            Coloque aquí su opción --> """)
+
+            if menu2 == 0 or menu2 is None:
+                continue
+
+            elif menu2 == 1:
+                nombre = input("Ingrese un nombre para el volumen (ej: T2): ")
+                carpeta = input("Ingrese la ruta de la carpeta DICOM: ")
+                try:
+                    volumen = gestor.cargar_carpeta(nombre, carpeta)
+                    print("\nVolumen cargado y reconstruido exitosamente.")
+                    print(volumen)
+                except ValueError as e:
+                    print(e)
+
+            elif menu2 == 2:
+                ruta = input("Ingrese la ruta de la carpeta 'datos' (Enter para usar ./datos): ")
+                if ruta == "":
+                    ruta = "datos"
+                print("Cargando, esto puede tardar unos segundos...")
+                cargados, errores = gestor.cargar_carpetas_clase(ruta)
+                if len(cargados) > 0:
+                    print("\nVolúmenes cargados: " + ", ".join(cargados))
+                for e in errores:
+                    print(e)
+            else:
+                print("Opción inválida. Por favor, intente de nuevo.")
