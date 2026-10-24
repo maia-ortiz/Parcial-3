@@ -238,3 +238,82 @@ class VolumenDicom:
         plt.close(fig)
 
         return ruta_grafico, ruta_imagen
+
+# Sacamos un corte en el plano pedido y lo deja con píxeles cuadrados
+    def __extraer_plano(self, plano, indice):
+        volumen = self.__volumen_activo()
+        n, filas, columnas = volumen.shape
+        mm_filas, mm_columnas, mm_corte = self.__voxel_escalado
+
+        if plano == "transversal":
+            maximo = n
+        elif plano == "coronal":
+            maximo = filas
+        elif plano == "sagital":
+            maximo = columnas
+        else:
+            raise ValueError(f"Error, los planos válidos son: {self.PLANOS}")
+
+        if indice < 0 or indice >= maximo:
+            raise ValueError(f"Error, para el plano {plano} el índice debe estar entre 0 y {maximo - 1}")
+
+        if plano == "transversal":
+            corte = volumen[indice, :, :]
+            mm_alto, mm_ancho = mm_filas, mm_columnas
+        elif plano == "coronal":
+            corte = volumen[:, indice, :]
+            mm_alto, mm_ancho = mm_corte, mm_columnas
+        else:
+            corte = volumen[:, :, indice]
+            mm_alto, mm_ancho = mm_corte, mm_filas
+
+        corte = np.ascontiguousarray(corte)
+
+        # Método por si un lado del píxel mide distinto al otro, se estira el corte para igualarlos
+        aspecto = mm_alto / mm_ancho
+        if abs(aspecto - 1) > 0.01:
+            nuevo_alto = max(1, int(round(corte.shape[0] * aspecto)))
+            corte = cv2.resize(corte, (corte.shape[1], nuevo_alto), interpolation=cv2.INTER_LINEAR)
+            mm_alto = mm_ancho
+
+        return corte, mm_alto, mm_ancho
+
+# Binariza, abre y mide la zona de interés (huecos oscuros dentro del cuerpo)
+    def segmentar_corte(self, plano, indice, umbral, tam_kernel, iteraciones, zona="oscura", carpeta_salida="resultados"):
+        if zona not in ("oscura", "clara"):
+            raise ValueError("Error, la zona de interés debe ser 'oscura' o 'clara'")
+        if tam_kernel < 1 or iteraciones < 1:
+            raise ValueError("Error, el kernel y las iteraciones deben ser mayores o iguales a 1")
+        if umbral < 0 or umbral > 255:
+            raise ValueError("Error, el umbral debe estar entre 0 y 255")
+
+        corte, mm_alto, mm_ancho = self.__extraer_plano(plano, indice)
+        corte8 = self.__normalizar_uint8(corte)
+        alto_px, ancho_px = corte8.shape
+
+        # Zona oscura (aire, T1): umbral inverso. Zona clara (líquido, T2): umbral normal. Lo que nos interesa va a quedar color blanco
+        tipo = cv2.THRESH_BINARY_INV if zona == "oscura" else cv2.THRESH_BINARY
+        _, binaria = cv2.threshold(corte8, umbral, 255, tipo)
+
+        # Apertura con kernel e iteraciones elegidas por el usuario
+        kernel = np.ones((tam_kernel, tam_kernel), np.uint8)
+        abierta = cv2.morphologyEx(binaria, cv2.MORPH_OPEN, kernel, iterations=iteraciones)
+
+        # Descartamos los que tocan el borde 
+        total, etiquetas, stats, centroides = cv2.connectedComponentsWithStats(abierta, connectivity=8)
+        interes = np.zeros_like(abierta)
+        mejor = -1
+        for i in range(1, total):
+            x, y, w, h, area = stats[i]
+            toca_borde = x == 0 or y == 0 or x + w == ancho_px or y + h == alto_px
+            if toca_borde:
+                continue
+            interes[etiquetas == i] = 255
+            if mejor == -1 or area > stats[mejor, cv2.CC_STAT_AREA]:
+                mejor = i
+
+        if mejor == -1:
+            raise ValueError("No se encontraron zonas de interés con esos parámetros, pruebe otro umbral o un kernel más pequeño")
+
+        x, y, w, h, area_px = stats[mejor]
+        area_mm2 = float(area_px) * mm_alto * mm_ancho
