@@ -149,3 +149,39 @@ Bienvenido al sistema de análisis de imágenes DICOM, ingrese la opción desead
             2. Zona clara (líquido, ventrículos en imágenes T2).
             0. Volver al menú principal.
             Coloque aquí su opción: """)
+
+            if menu3 == 0 or menu3 is None:
+                continue
+            elif menu3 not in (1, 2):
+                print("Opción inválida. Por favor, intente de nuevo.")
+                continue
+
+            zona = "oscura" if menu3 == 1 else "clara"
+            umbral = pedir_entero("Ingrese el umbral (1 a 255, o 0 para automático con Otsu): ")
+            if umbral is None:
+                continue
+            tam_kernel = pedir_entero("Ingrese el tamaño del kernel para la apertura (ej: 5): ")
+            if tam_kernel is None:
+                continue
+            iteraciones = pedir_entero("Ingrese el número de iteraciones de la apertura (ej: 2): ")
+            if iteraciones is None:
+                continue
+
+            try:
+                area, ruta_grafico, ruta_imagen = volumen.segmentar_corte(plano, indice, umbral, tam_kernel, iteraciones, zona)
+                print(f"\nÁrea aproximada de la zona de interés: {area:.2f} mm²")
+                print(f"Gráfico guardado en: {ruta_grafico}")
+                print(f"Imagen modificada guardada en: {ruta_imagen}")
+            except ValueError as e:
+                print(e)
+
+        elif op == 6:
+            print("Saliendo del programa...")
+            break
+
+        else:
+            print("Opción inválida. Intente nuevamente.")
+
+# Añadimos al final la linea de código para ejecutar el programa principal
+if __name__ == "__main__":
+    main()
