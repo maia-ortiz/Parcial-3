@@ -133,19 +133,19 @@ Bienvenido al sistema de análisis de imágenes DICOM, ingrese la opción desead
                         0. Volver al menú principal.
                         Coloque aquí su opción: """)
 
-                        if menu2 == 0 or menu2 is None:
-                                continue
-                        elif menu2 not in (1, 2, 3):
-                            print("Opción inválida. Por favor, intente de nuevo.")
-                            continue
+            if menu2 == 0 or menu2 is None:
+                continue
+            elif menu2 not in (1, 2, 3):
+                print("Opción inválida. Por favor, intente de nuevo.")
+                continue
 
-                        plano = sd.VolumenDicom.PLANOS[menu2 - 1]
-                        indice = pedir_entero(f"Ingrese el número del corte {plano}: ")
-                        if indice is None:
-                            continue
+            plano = sd.VolumenDicom.PLANOS[menu2 - 1]
+            indice = pedir_entero(f"Ingrese el número del corte {plano}: ")
+            if indice is None:
+                continue
 
-                        menu3 = pedir_entero("""Ingrese el tipo de zona de interés:
-                        1. Zona oscura (aire, huecos en imágenes T1 o TC).
-                        2. Zona clara (líquido, ventrículos en imágenes T2).
-                        0. Volver al menú principal.
-                        Coloque aquí su opción: """)
+            menu3 = pedir_entero("""Ingrese el tipo de zona de interés:
+            1. Zona oscura (aire, huecos en imágenes T1 o TC).
+            2. Zona clara (líquido, ventrículos en imágenes T2).
+            0. Volver al menú principal.
+            Coloque aquí su opción: """)
