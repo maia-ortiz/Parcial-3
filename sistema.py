@@ -15,11 +15,11 @@ class VolumenDicom:
         self.__columnas = 0
         self.__nombre_paciente = ""
         self.__modalidad = ""
-        self.__medidas = (0.0, 0.0, 0.0) # (alto, largo, ancho) en mm
+        self.__voxel = (0.0, 0.0, 0.0) # (alto, largo, ancho) en mm
         self.__matriz_pixeles = None # Cortes originales apilados (n, filas, columnas)
         
         # Info para procesos
-        self.__medidas_escaladas = (0.0, 0.0, 0.0) # duplicación del tamaño de los cortes
+        self.__voxel_escalado = (0.0, 0.0, 0.0) # duplicación del tamaño de los cortes
         self.__volumen = None # Reconstrucción 3D 
         self.__volumen_corregido = None 
         self.__matriz_rotacion = None
@@ -49,11 +49,11 @@ class VolumenDicom:
     def ver_modalidad(self):
         return self.__modalidad
 
-    def ver_medidas(self):
-        return self.__medidas
+    def ver_voxel(self):
+        return self.__voxel
 
-    def ver_medidas_escalado(self):
-        return self.__medidas_escaladas
+    def ver_voxel_escalado(self):
+        return self.__voxel_escalado
 
     def ver_matriz_pixeles(self):
         return self.__matriz_pixeles
